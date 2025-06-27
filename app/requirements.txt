@@ -1,0 +1,11 @@
+torch
+ultralytics
+supervision
+opencv-python-headless
+streamlit
+lap
+norfair
+torchvision
+opencv-python
+pandas
+Pillow
