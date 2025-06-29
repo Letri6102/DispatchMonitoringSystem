@@ -2,6 +2,8 @@
 
 This is an interactive Streamlit-based application for object tracking, fine-grained classification, and feedback-driven model improvement. The system leverages YOLOv12 for object detection and MobileNetV2 for classification of detected objects into detailed subcategories.
 
+Link Demo on Youtube: https://youtu.be/zbSmjH0vTDc
+
 ## Features Overview
 
 ### 1. Detection & Tracking (YOLOv12 + Streamlit UI)
