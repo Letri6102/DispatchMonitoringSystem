@@ -2,18 +2,19 @@ version: '3.8'
 
 services:
   app:
-    build: ./docker
-    command: python3 /app/modules/app.py 
+    build: ./  
+    command: streamlit run /app/app.py  
     volumes:
-      - ./app:/app  
+      - ./app:/app 
       - ./yolo_results:/yolo_results  
       - ./feedback_frames:/feedback_frames  
+      - ./models:/models  
     ports:
       - "8501:8501"  
     environment:
-      - PYTHONUNBUFFERED=1
+      - PYTHONUNBUFFERED=1 
     networks:
-      - dispatch-network
+      - dispatch-network  
 
 networks:
   dispatch-network:

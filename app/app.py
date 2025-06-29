@@ -16,7 +16,7 @@ from streamlit_option_menu import option_menu
 # ---------- SETTINGS ----------
 FEEDBACK_FILE = "feedback.json"
 EXPORT_CSV_FILE = "feedback_export.csv"
-YOLO_OUTPUT_DIR = "yolo_results"
+YOLO_OUTPUT_DIR = "/yolo_results"
 os.makedirs(YOLO_OUTPUT_DIR, exist_ok=True)
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
@@ -133,11 +133,13 @@ if selected == "Detection & Tracking":
             progress.progress(20, text="📦 Running YOLO tracking...")
 
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            output_filename = f"tracked_{timestamp}.mp4"
-            output_path = os.path.join(YOLO_OUTPUT_DIR, output_filename)
+            output_filename = uploaded_track_video.name  # Giữ nguyên tên gốc của file
+            output_path = os.path.join(
+                YOLO_OUTPUT_DIR, output_filename)  # Sử dụng tên gốc
 
             output_video_path, log_df = run_yolo_tracking(
                 input_video_path,
+                original_filename=uploaded_track_video.name,
                 conf=conf_thres,
                 iou=iou_thres,
                 max_det=max_det,
@@ -145,16 +147,14 @@ if selected == "Detection & Tracking":
                 output_dir=YOLO_OUTPUT_DIR
             )
 
-            if os.path.exists(output_video_path):
-                os.rename(output_video_path, output_path)
-                output_video_path = output_path
-
             progress.progress(100, text="✅ Done!")
 
             if os.path.exists(output_video_path):
                 st.success("🎉 Tracking completed successfully!")
                 with open(output_video_path, "rb") as f:
-                    st.video(f.read())
+                    video_bytes = f.read()  # Đọc video dưới dạng byte stream
+                    # Phát video trực tiếp trong Streamlit
+                    st.video(video_bytes)
 
                 if log_df is not None:
                     st.subheader("📄 Tracking results by frame")
@@ -169,7 +169,6 @@ if selected == "Detection & Tracking":
         except Exception as e:
             st.error(f"❌ Error during tracking: {str(e)}")
 
-    # 📁 Recently tracked videos
     st.markdown("## 📂 Recently Tracked Videos")
     tracked_videos = sorted(
         glob(os.path.join(YOLO_OUTPUT_DIR, "tracked_*.mp4")), reverse=True)
@@ -178,8 +177,9 @@ if selected == "Detection & Tracking":
         selected_video = st.selectbox(
             "🎬 Select a tracked video", tracked_videos)
         with open(selected_video, "rb") as f:
-            st.video(f.read())
-        st.download_button("⬇️ Download Video", data=open(selected_video, "rb").read(),
+            video_bytes = f.read()  # Đọc video dưới dạng byte stream
+            st.video(video_bytes)  # Phát video trong Streamlit
+        st.download_button("⬇️ Download Video", data=video_bytes,
                            file_name=os.path.basename(selected_video), mime="video/mp4")
     else:
         st.info("📭 No tracked videos available.")
@@ -306,14 +306,14 @@ elif selected == "Feedback Log":
             if st.button("🚀 Start Extraction"):
                 extract_all_feedback_frames()
                 st.success(
-                    "✅ Images extracted to `feedback_frames/` directory.")
+                    "✅ Images extracted to `/feedback_frames/` directory.")
         else:
             st.info("📭 No feedback data available.")
     else:
         st.info("📭 No feedback data available.")
 
     # 📸 Display extracted feedback images
-    ROOT_FEEDBACK_IMAGE_DIR = "feedback_frames"
+    ROOT_FEEDBACK_IMAGE_DIR = "/feedback_frames"
     if os.path.exists(ROOT_FEEDBACK_IMAGE_DIR):
         st.markdown("## 🖼️ Extracted Feedback Images")
         feedback_types = sorted(os.listdir(ROOT_FEEDBACK_IMAGE_DIR))

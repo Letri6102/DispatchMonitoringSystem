@@ -10,7 +10,7 @@ from torchvision import transforms
 # ============================
 # STEP 1: Load YOLO model
 # ============================
-MODEL_PATH = 'models/yolo_v12/weights/best.pt'
+MODEL_PATH = '/models/yolo_v12/weights/best.pt'
 ROI_X1, ROI_Y1 = 820, 80
 ROI_X2, ROI_Y2 = 1750, 540
 TARGET_CLASSES = ['tray', 'dish']
@@ -24,17 +24,14 @@ CLASS_NAMES = model.names
 # ============================
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-# Load models
-dish_classifier = torch.load('models/dish_classifier.pt', map_location=device)
-tray_classifier = torch.load('models/tray_classifier.pt', map_location=device)
+dish_classifier = torch.load('/models/dish_classifier.pt', map_location=device)
+tray_classifier = torch.load('/models/tray_classifier.pt', map_location=device)
 dish_classifier.eval()
 tray_classifier.eval()
 
-# Define class labels
 dish_classes = ['empty', 'kakigori', 'not_empty']
 tray_classes = ['empty', 'kakigori', 'not_empty']
 
-# Preprocess transform
 transform = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor()
@@ -59,7 +56,7 @@ def classify_crop(crop_img, classifier, class_names):
 # ============================
 
 
-def run_yolo_tracking(input_video_path, conf=0.25, iou=0.5, max_det=100, classes="", output_dir="yolo_results"):
+def run_yolo_tracking(input_video_path, original_filename=None, conf=0.25, iou=0.5, max_det=100, classes="", output_dir="/yolo_results"):
     try:
         class_filter = list(
             map(int, classes.strip().split())) if classes else None
@@ -67,20 +64,49 @@ def run_yolo_tracking(input_video_path, conf=0.25, iou=0.5, max_det=100, classes
         class_filter = None
 
     os.makedirs(output_dir, exist_ok=True)
-    filename = os.path.basename(input_video_path)
-    output_video_path = os.path.join(output_dir, f"tracked_{filename}")
+
+    # Determine output file name based on original filename
+    if original_filename:
+        base_name = os.path.splitext(os.path.basename(original_filename))[0]
+        output_name = f"tracked_{base_name}.mp4"
+    else:
+        output_name = f"tracked_{os.path.basename(input_video_path)}"
+
+    output_video_path = os.path.join(output_dir, output_name)
+
+    # DEBUG print paths
+    print(f"[DEBUG] input_video_path: {input_video_path}")
+    print(f"[DEBUG] output_video_path: {output_video_path}")
+
+    # Sanity check for writing
+    try:
+        test_path = os.path.join(output_dir, "test_write.txt")
+        with open(test_path, "w") as f:
+            f.write("test")
+        os.remove(test_path)
+    except Exception as e:
+        raise RuntimeError(f"❌ Cannot write to {output_dir}: {e}")
 
     cap = cv2.VideoCapture(input_video_path)
-    fps = cap.get(cv2.CAP_PROP_FPS)
+    if not cap.isOpened():
+        raise RuntimeError(f"❌ Could not open input video: {input_video_path}")
+
+    fps = cap.get(cv2.CAP_PROP_FPS) or 30
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-    fourcc = cv2.VideoWriter_fourcc(*'avc1')
-    out = cv2.VideoWriter(output_video_path, fourcc, fps, (width, height))
-
-    if not out.isOpened():
+    # Try 'avc1' first, fallback to 'mp4v'
+    try_codecs = ['avc1', 'mp4v']
+    out = None
+    for codec in try_codecs:
+        fourcc = cv2.VideoWriter_fourcc(*codec)
+        out = cv2.VideoWriter(output_video_path, fourcc, fps, (width, height))
+        if out.isOpened():
+            print(f"[INFO] Using codec: {codec}")
+            break
+    else:
         raise RuntimeError(
-            "Error.")
+            f"❌ Could not create output video with tried codecs at: {output_video_path}")
 
     log_data = []
     frame_count = 0
@@ -115,7 +141,6 @@ def run_yolo_tracking(input_video_path, conf=0.25, iou=0.5, max_det=100, classes
             abs_x1, abs_y1 = x1 + ROI_X1, y1 + ROI_Y1
             abs_x2, abs_y2 = x2 + ROI_X1, y2 + ROI_Y1
 
-            # === Crop object for classification
             crop = roi[y1:y2, x1:x2]
             if class_name == 'dish':
                 sub_label = classify_crop(crop, dish_classifier, dish_classes)
@@ -124,7 +149,6 @@ def run_yolo_tracking(input_video_path, conf=0.25, iou=0.5, max_det=100, classes
             else:
                 sub_label = 'unknown'
 
-            # === Annotate frame
             label = f"{class_name} ({sub_label}) ID:{int(track_id)} {conf_score:.2f}" if track_id is not None else f"{class_name} ({sub_label})"
             cv2.rectangle(frame, (abs_x1, abs_y1),
                           (abs_x2, abs_y2), (0, 255, 0), 2)
@@ -145,7 +169,6 @@ def run_yolo_tracking(input_video_path, conf=0.25, iou=0.5, max_det=100, classes
                 "timestamp": datetime.now().isoformat()
             })
 
-        # Draw ROI box
         cv2.rectangle(frame, (ROI_X1, ROI_Y1),
                       (ROI_X2, ROI_Y2), (255, 0, 0), 1)
         out.write(frame)
@@ -158,7 +181,8 @@ def run_yolo_tracking(input_video_path, conf=0.25, iou=0.5, max_det=100, classes
         df_log = pd.DataFrame(log_data)
         return output_video_path, df_log
     else:
-        raise RuntimeError("❌ Video kết quả bị lỗi hoặc rỗng.")
+        raise RuntimeError(
+            f"❌ Video kết quả bị lỗi hoặc rỗng: {output_video_path}")
 
 # ============================
 # STEP 5: Run on image (unchanged)
