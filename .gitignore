@@ -1,0 +1,37 @@
+# Ignore Python bytecode
+__pycache__/
+*.py[cod]
+*.so
+
+# Ignore virtual environment
+venv/
+.env/
+.envrc
+
+# Ignore system files
+.DS_Store
+Thumbs.db
+
+# Ignore logs
+*.log
+
+# Ignore Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Ignore YOLO result videos & detection output
+yolo_results/
+*.mp4
+*.avi
+*.mov
+
+# Ignore model weights
+*.pt
+*.pth
+*.h5
+
+# Ignore VSCode settings (if using)
+.vscode/
+
+# Ignore temporary files
+*.tmp
+*.swp
